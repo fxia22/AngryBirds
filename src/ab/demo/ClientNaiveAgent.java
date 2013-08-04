@@ -23,6 +23,7 @@ import java.util.Random;
 import ab.demo.other.ClientActionRobot;
 import ab.demo.other.ClientActionRobotJava;
 import ab.demo.other.Env;
+import ab.demo.Bird;
 import ab.planner.TrajectoryPlanner;
 import ab.vision.GameStateExtractor.GameState;
 import ab.vision.Vision;
@@ -31,18 +32,26 @@ import ab.vision.*;
 //Naive agent (server/client version)
 
 public class ClientNaiveAgent implements Runnable {
-
+	private static final int RED = 1;
+	private static final int YELLOW = 2;
+	private static final int BLUE = 3;
+	private static final int BLACK = 4;
+	private static final int WHITE = 5;
 	//focus point
 	private int focus_x;
 	private int focus_y;
 	//Wrapper of the communicating messages
 	private ClientActionRobotJava ar;
-	public byte currentLevel = 1;
+	public byte currentLevel = 20;
 	TrajectoryPlanner tp;
 	private int id = 18898;
 	private boolean firstShot;
 	private Point prevTarget;
+	private int level = 0;
 	private List<Integer> pigcount =new ArrayList<Integer>();
+	int last_shot_score = 0;
+	int _last_shot_score = 0;
+	
 	/**
 	 * Constructor using the default IP
 	 * */
@@ -79,10 +88,14 @@ public class ClientNaiveAgent implements Runnable {
      */
 	public void run() {
 		
-	
+		boolean allplayed = false;
 		ar.configure(ClientActionRobot.intToByteArray(id));
 		//load the initial level (default 1)
 		//ar.loadLevel((byte)15);
+		int[] s = ar.checkScore();
+		level = s.length;
+		
+		
 		ar.loadLevel(currentLevel);
 		ar.clickInCenter();
 		pigcount.clear();
@@ -98,31 +111,55 @@ public class ClientNaiveAgent implements Runnable {
 			
 				System.out.println("Pigcount list:"+pigcount.toString());
 				System.out.println(" loading the level " + (currentLevel + 1) );
-				ar.loadLevel(++currentLevel);
+				currentLevel++;
+				if (currentLevel>level) allplayed = true;
+				if (allplayed) 
+				{
+					System.out.println("All Played!");
+					int[] scores = ar.checkScore();
+					System.out.println("The global best score: ");
+					for (int i = 0; i < scores.length ; i ++)
+					{
+					    /*  if(scores[i] == 0)
+					    	  break;
+					      else*/
+					    	  System.out.print( " level " + (i+1) + ": " + scores[i]);
+					}
+					System.out.println();
+					System.out.println(" My score: ");
+					int myscores[] = ar.checkMyScore();
+					for (int i = 0; i < myscores.length ; i ++)
+					{
+					      /*if(scores[i] == 0)
+					    	  break;
+					      else*/
+					    	  System.out.print( " level " + (i+1) + ": " + myscores[i]);
+					}
+					int max = -100000;
+					int maxi = 0;
+					for (int i = 0; i < myscores.length ; i ++)
+					{
+						if (scores[i]-myscores[i]>max) 
+						{
+							max = scores[i]-myscores[i];
+							maxi = i;
+							
+						}
+					}
+					
+					System.out.println("Play level"+(maxi+1));
+					System.out.println();
+					currentLevel = (byte)(maxi+1);
+				}
+				
+				
+				ar.loadLevel(currentLevel);
+				
 				ar.clickInCenter();
 				pigcount.clear();
 
 				//display the global best scores
-				int[] scores = ar.checkScore();
-				System.out.println("The global best score: ");
-				for (int i = 0; i < scores.length ; i ++)
-				{
-				    /*  if(scores[i] == 0)
-				    	  break;
-				      else*/
-				    	  System.out.print( " level " + (i+1) + ": " + scores[i]);
-				}
-				System.out.println();
-				System.out.println(" My score: ");
-				scores = ar.checkMyScore();
-				for (int i = 0; i < scores.length ; i ++)
-				{
-				      /*if(scores[i] == 0)
-				    	  break;
-				      else*/
-				    	  System.out.print( " level " + (i+1) + ": " + scores[i]);
-				}
-				System.out.println();
+				
 				// make a new trajectory planner whenever a new level is entered
 				tp = new TrajectoryPlanner();
 
@@ -164,13 +201,23 @@ public class ClientNaiveAgent implements Runnable {
 
 	{
 		
-		
+		int wait_time = 0 ;
 		// capture Image
 		BufferedImage screenshot = ar.doScreenShot();
 
 		// process image
 		Vision vision = new Vision(screenshot);
-
+		GameStateExtractor game = new GameStateExtractor();
+		GameStateExtractor.GameState gstate = game.getGameState(screenshot);
+		
+		
+		_last_shot_score = last_shot_score;
+		if (gstate == GameStateExtractor.GameState.PLAYING) {
+			System.out.println("In game score : " + game.getScoreInGame(screenshot));
+			last_shot_score = game.getScoreInGame(screenshot);
+		};
+		
+		
 		Rectangle sling = vision.findSlingshot();
 		
 		//If the level is loaded (in PLAYING State)but no slingshot detected, then the agent will request to fully zoom out.
@@ -188,13 +235,8 @@ public class ClientNaiveAgent implements Runnable {
 			
 			
 			
-			BufferedImage birdshot = ar.doScreenShot();
-			Vision birdvision = new Vision(birdshot);
-			List<Rectangle> red = birdvision.findRedBirds();
-			List<Rectangle> blue = birdvision.findBlueBirds();
-			List<Rectangle> yellow = birdvision.findYellowBirds();
-			int bird = red.size() + blue.size() + yellow.size();
-			System.out.println("birdsize"+bird);
+		
+			
 			ar.fullyZoomOut();
 			screenshot = ar.doScreenShot();
 			vision = new Vision(screenshot);
@@ -205,6 +247,8 @@ public class ClientNaiveAgent implements Runnable {
 		List<Rectangle> red_birds = vision.findRedBirds();
 		List<Rectangle> blue_birds = vision.findBlueBirds();
 		List<Rectangle> yellow_birds = vision.findYellowBirds();
+		List<Rectangle> black_birds = vision.findBlackBirds();
+		List<Rectangle> white_birds = vision.findWhiteBirds();
 		List<Rectangle> pigs = vision.findPigs();
 		int bird_count = 0;
 		bird_count = red_birds.size() + blue_birds.size() + yellow_birds.size();
@@ -213,9 +257,218 @@ public class ClientNaiveAgent implements Runnable {
 				+ bird_count + " birds");
 		GameState state = ar.checkState();
 		pigcount.add(pigs.size());
+		/**
+		 * 找出弹弓上的鸟
+		 */
+		Bird b = new Bird();
+		boolean tap = false;
+		int _bird_on_sling = 0;
+		int bird_on_sling = 0;
+		boolean find_bird = false;
+		List<Bird> birdlist = new ArrayList<Bird>();
+		birdlist.clear();
+		for (int i = 0; i<red_birds.size();i++) {
+			birdlist.add(new Bird(red_birds.get(i),1));
+		}
+		for (int i = 0; i<yellow_birds.size();i++) {
+			birdlist.add(new Bird(yellow_birds.get(i),2));
+		}
+		for (int i = 0; i<blue_birds.size();i++) {
+			birdlist.add(new Bird(blue_birds.get(i),3));
+		}
+		for (int i = 0; i<black_birds.size();i++) {
+			birdlist.add(new Bird(black_birds.get(i),4));
+		}
+		for (int i = 0; i<white_birds.size();i++) {
+			birdlist.add(new Bird(white_birds.get(i),5));
+			System.out.println("White"+white_birds.get(i).toString());
+		}
+		if (sling!=null)
+		
+		for (int i=0;i<birdlist.size();i++)
+		{
+			if (sling.contains(birdlist.get(i).x, birdlist.get(i).y)) 
+			{
+				System.out.println(birdlist.get(i).color);
+				if ((birdlist.get(i).color==BLUE)||(birdlist.get(i).color == YELLOW)) tap = true;
+				find_bird = true;
+				break;
+			}
+		}
+		
+		
+		
+		
+		
+		if ((!find_bird)&&(sling!=null)&&(pigs.size()>0))
+		{
+			ar.clickInCenter();
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			ar.clickInCenter();
+			ar.fullyZoomIn();
+			//ar.fullyZoomIn();
+			
+			BufferedImage bscreenshot = ar.doScreenShot();
+			//ar.fullyZoomOut();
+			Vision bvision = new Vision(bscreenshot);
+			Rectangle bsling = bvision.findSlingshot();
+			List<Rectangle> bred_birds = bvision.findRedBirds();
+			List<Rectangle> bblue_birds = bvision.findBlueBirds();
+			List<Rectangle> byellow_birds = bvision.findYellowBirds();
+			List<Rectangle> bblack_birds = bvision.findBlackBirds();
+			List<Rectangle> bwhite_birds = bvision.findWhiteBirds();
+			
+			/**
+			 * 找出弹弓上的鸟
+			 */
+			
+			//int _bird_on_sling = 0;
+			//birdcolor bird_on_sling = RED;
+			//boolean find_bird = false;
+			List<Bird> bbirdlist = new ArrayList<Bird>();
+			bbirdlist.clear();
+			for (int i = 0; i<bred_birds.size();i++) {
+				bbirdlist.add(new Bird(bred_birds.get(i),1));
+			}
+			for (int i = 0; i<byellow_birds.size();i++) {
+				bbirdlist.add(new Bird(byellow_birds.get(i),2));
+			}
+			for (int i = 0; i<bblue_birds.size();i++) {
+				bbirdlist.add(new Bird(bblue_birds.get(i),3));
+			}
+			for (int i = 0; i<bblack_birds.size();i++) {
+				bbirdlist.add(new Bird(bblack_birds.get(i),4));
+			}
+			for (int i = 0; i<bwhite_birds.size();i++) {
+				bbirdlist.add(new Bird(bwhite_birds.get(i),5));
+				
+			}
+			if (bsling!=null)
+			for (int i=0;i<bbirdlist.size();i++)
+			{
+				if (bsling.contains(bbirdlist.get(i).x, bbirdlist.get(i).y)) 
+				{
+					System.out.println(bbirdlist.get(i).color);
+					if ((bbirdlist.get(i).color==BLUE )||(bbirdlist.get(i).color==YELLOW)) tap = true;
+					find_bird = true;
+					break;
+				}
+			}
+			
+		}
+		
+		
+
+		if ((!find_bird)&&(sling!=null)&&(pigs.size()>0))
+		{
+			ar.clickInCenter();
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			//ar.fullyZoomIn();
+			
+			BufferedImage bscreenshot = ar.doScreenShot();
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			ar.fullyZoomOut();
+			Vision bvision = new Vision(bscreenshot);
+			Rectangle bsling = bvision.findSlingshot();
+			List<Rectangle> bred_birds = bvision.findRedBirds();
+			List<Rectangle> bblue_birds = bvision.findBlueBirds();
+			List<Rectangle> byellow_birds = bvision.findYellowBirds();
+			List<Rectangle> bblack_birds = bvision.findBlackBirds();
+			List<Rectangle> bwhite_birds = bvision.findWhiteBirds();
+			
+			/**
+			 * 找出弹弓上的鸟
+			 */
+			
+			//int _bird_on_sling = 0;
+			//birdcolor bird_on_sling = RED;
+			//boolean find_bird = false;
+			List<Bird> bbirdlist = new ArrayList<Bird>();
+			bbirdlist.clear();
+			for (int i = 0; i<bred_birds.size();i++) {
+				bbirdlist.add(new Bird(bred_birds.get(i),1));
+			}
+			for (int i = 0; i<byellow_birds.size();i++) {
+				bbirdlist.add(new Bird(byellow_birds.get(i),2));
+			}
+			for (int i = 0; i<bblue_birds.size();i++) {
+				bbirdlist.add(new Bird(bblue_birds.get(i),3));
+			}
+			for (int i = 0; i<bblack_birds.size();i++) {
+				bbirdlist.add(new Bird(bblack_birds.get(i),4));
+			}
+			for (int i = 0; i<bwhite_birds.size();i++) {
+				bbirdlist.add(new Bird(bwhite_birds.get(i),5));
+				
+			}
+			if (bsling!=null)
+			for (int i=0;i<bbirdlist.size();i++)
+			{
+				if (bsling.contains(bbirdlist.get(i).x, bbirdlist.get(i).y)) 
+				{
+					System.out.println(bbirdlist.get(i).color);
+					if ((bbirdlist.get(i).color==BLUE )||(bbirdlist.get(i).color==YELLOW)) tap = true;
+					find_bird = true;
+					break;
+				}
+			}
+			
+		}
+
+		if (!find_bird) 
+			if (!pigs.isEmpty())
+				{
+				return state;
+				}
+			else
+			{
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					
+					e.printStackTrace();
+				}
+			}
+		
 		int tap_time = 100;
 		// if there is a sling, then play, otherwise skip.
 		if (sling != null) {
+			
+			/*BufferedImage birdshot = ar.doScreenShot();
+			Vision birdvision = new Vision(birdshot);
+			List<Rectangle> red = birdvision.findRedBirds();
+			List<Rectangle> blue = birdvision.findBlueBirds();
+			List<Rectangle> yellow = birdvision.findYellowBirds();
+			List<Rectangle> black = birdvision.findBlackBirds();
+			List<Rectangle> white = birdvision.findWhiteBirds();
+			int bird = red.size() + blue.size() + yellow.size();
+			
+			
+			
+			for (int i=0; i<birdlist.size();i++)
+			{
+				System.out.println(birdlist.get(i).col);
+			}
+			
+			
+			System.out.println("birdsize"+bird);
+			*/
 			ar.fullyZoomOut();
 			
 			//If there are pigs, we pick up a pig randomly and shoot it. 
@@ -248,11 +501,11 @@ public class ClientNaiveAgent implements Runnable {
 					System.out.println("the target point is " + _tpt);
 					List<Point> tr= new ArrayList<Point>();
 					tr.clear();
-					for (int i = 0; i<10;i++)
+					for (int i = 0; i<20;i++)
 					{	
 						Point p = new Point((int)((pig.getCenterX()+sling.getX())/2+(pig.getCenterX()-sling.getX())*i/10),(int)((pig.getCenterY()+sling.getY())/2+(pig.getCenterY()-sling.getY())*i/10));
 						tr.add(p);
-						System.out.println(p.toString());
+					//	System.out.println(p.toString());
 					}
 					// if the target is very close to before, randomly choose a point near it
 					if (prevTarget != null && distance(prevTarget, _tpt) < 10) {
@@ -276,7 +529,7 @@ public class ClientNaiveAgent implements Runnable {
 					System.out.println("clods:"+clods.size());
 					System.out.println(clods.toString());
 					int in = 0;
-					for (int i=0;i<8; i++)
+					for (int i=0;i<18; i++)
 						for (int j = 0;j<clods.size();j++)
 						{
 							if (clods.get(j).contains(tr.get(i))){ in += 1;
@@ -289,7 +542,7 @@ public class ClientNaiveAgent implements Runnable {
 					 * 选择抛物线，通常选择较低的
 					 */
 					// do a high shot when entering a level to find an accurate velocity
-					if ((in>0)&&(pts.size()>1)&&(r.nextInt(2)==0)||(firstShot)&&((pts.size()>1)))
+					if ((in>1)&&(pts.size()>1)&&(r.nextInt(4)!=1)||(firstShot)&&((pts.size()>1)))
 						 releasePoint = pts.get(1);
 					else
 						releasePoint = pts.get(0);
@@ -321,6 +574,8 @@ public class ClientNaiveAgent implements Runnable {
 						tap_time+=Math.random() * 100;
 						tap_time-=Math.random() * 100;
 						
+						wait_time = tap_time * 2 -1000;
+						if (!tap) tap_time = 0;
 						System.out.println("taptime:"+tap_time);
 						
 					} else
@@ -333,7 +588,7 @@ public class ClientNaiveAgent implements Runnable {
 					screenshot = ar.doScreenShot();
 					vision = new Vision(screenshot);
 					Rectangle _sling = vision.findSlingshot();
-					if (sling.equals(_sling)) {
+					if (Math.abs((sling.getCenterX()-(_sling.getCenterX())))<5) {
 
 						// make the shot
 						ar.fshoot(focus_x, focus_y, (int) releasePoint.getX()
@@ -369,10 +624,10 @@ public class ClientNaiveAgent implements Runnable {
 				/**
 				 * 确认场景是否静止
 				 */
-				{
-				if ((tap_time * 2 -1000)>0)
+				
+				if ((wait_time>0))
 					try {
-						Thread.sleep(tap_time * 2-1000);
+						Thread.sleep(wait_time);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					};
@@ -448,7 +703,7 @@ public class ClientNaiveAgent implements Runnable {
 					
 					
 					System.out.println("Finish");
-				}
+				
 				
 				
 			}
