@@ -176,7 +176,7 @@ public class ClientNaiveAgent implements Runnable {
 		//If the level is loaded (in PLAYING State)but no slingshot detected, then the agent will request to fully zoom out.
 		while (sling == null && ar.checkState() == GameState.PLAYING) {
 			System.out.println("no slingshot detected. Please remove pop up or zoom out");
-			/*
+			
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -185,7 +185,7 @@ public class ClientNaiveAgent implements Runnable {
 				
 				
 			}
-			*/
+			
 			
 			
 			BufferedImage birdshot = ar.doScreenShot();
