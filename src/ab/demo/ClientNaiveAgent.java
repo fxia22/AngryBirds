@@ -42,7 +42,7 @@ public class ClientNaiveAgent implements Runnable {
 	private int focus_y;
 	//Wrapper of the communicating messages
 	private ClientActionRobotJava ar;
-	public byte currentLevel = 20;
+	public byte currentLevel = 1;
 	TrajectoryPlanner tp;
 	private int id = 18898;
 	private boolean firstShot;
@@ -212,6 +212,7 @@ public class ClientNaiveAgent implements Runnable {
 		
 		
 		_last_shot_score = last_shot_score;
+		
 		if (gstate == GameStateExtractor.GameState.PLAYING) {
 			System.out.println("In game score : " + game.getScoreInGame(screenshot));
 			last_shot_score = game.getScoreInGame(screenshot);
@@ -559,7 +560,7 @@ public class ClientNaiveAgent implements Runnable {
 
 					// Get the release point from the trajectory prediction module
 					System.out.println("Shoot!!");
-
+					System.out.println("Last Shot Score:"+_last_shot_score);
 					if (releasePoint != null) {
 						double releaseAngle = tp.getReleaseAngle(sling,
 								releasePoint);
@@ -703,7 +704,10 @@ public class ClientNaiveAgent implements Runnable {
 					
 					
 					System.out.println("Finish");
-				
+					if (gstate == GameStateExtractor.GameState.PLAYING) {
+						System.out.println("In game score : " + game.getScoreInGame(screenshot));
+						last_shot_score -= game.getScoreInGame(screenshot);
+					};
 				
 				
 			}
