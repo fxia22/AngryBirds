@@ -23,6 +23,7 @@ import java.util.Random;
 import ab.demo.other.ClientActionRobot;
 import ab.demo.other.ClientActionRobotJava;
 import ab.demo.other.Env;
+import ab.demo.other.Shot;
 import ab.demo.Bird;
 import ab.planner.TrajectoryPlanner;
 import ab.vision.GameStateExtractor.GameState;
@@ -42,7 +43,7 @@ public class ClientNaiveAgent implements Runnable {
 	private int focus_y;
 	//Wrapper of the communicating messages
 	private ClientActionRobotJava ar;
-	public byte currentLevel = 1;
+	public byte currentLevel = 19;
 	TrajectoryPlanner tp;
 	private int id = 18898;
 	private boolean firstShot;
@@ -51,7 +52,9 @@ public class ClientNaiveAgent implements Runnable {
 	private List<Integer> pigcount =new ArrayList<Integer>();
 	int last_shot_score = 0;
 	int _last_shot_score = 0;
-	
+	Shot lastshot;
+	int lastshotp = 0;
+	int fail = 0;
 	/**
 	 * Constructor using the default IP
 	 * */
@@ -97,6 +100,7 @@ public class ClientNaiveAgent implements Runnable {
 		
 		
 		ar.loadLevel(currentLevel);
+		fail = 0;
 		ar.clickInCenter();
 		pigcount.clear();
 		GameState state;
@@ -108,8 +112,12 @@ public class ClientNaiveAgent implements Runnable {
 			if (state == GameState.WON) {
 							
 				
-			
+				fail = 0;
 				System.out.println("Pigcount list:"+pigcount.toString());
+				pigcount.clear();
+				_last_shot_score = 0;
+				last_shot_score = 0;
+				
 				System.out.println(" loading the level " + (currentLevel + 1) );
 				currentLevel++;
 				if (currentLevel>level) allplayed = true;
@@ -136,7 +144,10 @@ public class ClientNaiveAgent implements Runnable {
 					    	  System.out.print( " level " + (i+1) + ": " + myscores[i]);
 					}
 					int max = -100000;
-					int maxi = 0;
+					int max2 = -100000;
+					int max3 = -100000;
+					
+					
 					for (int i = 0; i < myscores.length ; i ++)
 					{
 						if (scores[i]-myscores[i]>max) 
@@ -169,23 +180,74 @@ public class ClientNaiveAgent implements Runnable {
 			} else 
 				//If lost, then restart the level
 				if (state == GameState.LOST) {
-				System.out.println("restart");
 				ar.restartLevel();
+				fail++;
+				System.out.println("Fail:"+fail);
+				if (fail>1) 
+				{
+					if (allplayed) 
+					{
+						System.out.println("All Played!");
+						int[] scores = ar.checkScore();
+						System.out.println("The global best score: ");
+						for (int i = 0; i < scores.length ; i ++)
+						{
+						    /*  if(scores[i] == 0)
+						    	  break;
+						      else*/
+						    	  System.out.print( " level " + (i+1) + ": " + scores[i]);
+						}
+						System.out.println();
+						System.out.println(" My score: ");
+						int myscores[] = ar.checkMyScore();
+						for (int i = 0; i < myscores.length ; i ++)
+						{
+						      /*if(scores[i] == 0)
+						    	  break;
+						      else*/
+						    	  System.out.print( " level " + (i+1) + ": " + myscores[i]);
+						}
+						int max = -100000;
+						int maxi = 0;
+						for (int i = 0; i < myscores.length ; i ++)
+						{
+							if (scores[i]-myscores[i]>max) 
+							{
+								max = scores[i]-myscores[i];
+								maxi = i;
+								
+							}
+						}
+						
+						System.out.println("Play level"+(maxi+1));
+						System.out.println();
+						currentLevel = (byte)(maxi+1);
+					}
+					else currentLevel+=1;
+					ar.loadLevel(currentLevel);
+					fail = 0;
+					
+				}
+				System.out.println("restart");
+				
 				pigcount.clear();
 			} else 
 				if (state == GameState.LEVEL_SELECTION) {
 				System.out.println("unexpected level selection page, go to the last current level : "
 								+ currentLevel);
 				ar.loadLevel(currentLevel);
+				fail = 0;
 			} else if (state == GameState.MAIN_MENU) {
 				System.out
 						.println("unexpected main menu page, reload the level : "
 								+ currentLevel);
 				ar.loadLevel(currentLevel);
+				fail = 0;
 			} else if (state == GameState.EPISODE_MENU) {
 				System.out.println("unexpected episode menu page, reload the level: "
 								+ currentLevel);
 				ar.loadLevel(currentLevel);
+				fail = 0;
 			}
 
 		}
@@ -543,11 +605,34 @@ public class ClientNaiveAgent implements Runnable {
 					 * 选择抛物线，通常选择较低的
 					 */
 					// do a high shot when entering a level to find an accurate velocity
-					if ((in>1)&&(pts.size()>1)&&(r.nextInt(4)!=1)||(firstShot)&&((pts.size()>1)))
-						 releasePoint = pts.get(1);
+					if ((_last_shot_score==0)||(_last_shot_score>=1500))
+					{
+						if ((in>1)&&(pts.size()>1)&&(r.nextInt(4)!=1)||(firstShot)&&((pts.size()>1)))
+						{
+							releasePoint = pts.get(1);
+							lastshotp = 1;
+						}
+							
+						else
+						{
+							releasePoint = pts.get(0);
+							lastshotp = 0;
+						};
+					}
 					else
-						releasePoint = pts.get(0);
+					{
+						
+						System.out.println("Change parabola"+" Last p "+lastshotp);
+						if ((lastshotp ==0)&& (pts.size()>1))							
+							{
+							releasePoint = pts.get(1);
+							}
+						else releasePoint = pts.get(0);
+								
+						lastshotp = 1- lastshotp;
+					};
 					
+						
 					Point refPoint = tp.getReferencePoint(sling);
 					//Get the center of the active bird as focus point 
 					focus_x = (int) ((Env.getFocuslist()
@@ -589,12 +674,17 @@ public class ClientNaiveAgent implements Runnable {
 					screenshot = ar.doScreenShot();
 					vision = new Vision(screenshot);
 					Rectangle _sling = vision.findSlingshot();
-					if (Math.abs((sling.getCenterX()-(_sling.getCenterX())))<5) {
+					if (Math.abs((sling.getCenterX()-(_sling.getCenterX())))<2) {
 
 						// make the shot
+						
 						ar.fshoot(focus_x, focus_y, (int) releasePoint.getX()
 								- focus_x, (int) releasePoint.getY() - 	focus_y,
 								0, tap_time, false);
+						
+						lastshot = new Shot(focus_x, focus_y, (int) releasePoint
+								.getX() - focus_x, (int) releasePoint.getY()
+								- focus_y, 0, tap_time);
 						/*
 						 * Test shoot sequence...
 						 * int[] shot_1 =  {focus_x, focus_y, (int) releasePoint.getX()
@@ -702,11 +792,11 @@ public class ClientNaiveAgent implements Runnable {
 						};
 					}
 					
-					
+					screenshot = ar.doScreenShot();
 					System.out.println("Finish");
 					if (gstate == GameStateExtractor.GameState.PLAYING) {
 						System.out.println("In game score : " + game.getScoreInGame(screenshot));
-						last_shot_score -= game.getScoreInGame(screenshot);
+						last_shot_score = game.getScoreInGame(screenshot) - last_shot_score;
 					};
 				
 				
@@ -747,6 +837,8 @@ public class ClientNaiveAgent implements Runnable {
 		ar.clickInCenter();*/
 		//ar.fullyZoomOut();
 	}
+	
+	
 	public static void main(String args[]) {
 
 		ClientNaiveAgent na;
@@ -755,7 +847,7 @@ public class ClientNaiveAgent implements Runnable {
 		else
 			na = new ClientNaiveAgent();
 		
-		//na.run();
-		na.test();
+		na.run();
+		//na.test();
 	}
 }
