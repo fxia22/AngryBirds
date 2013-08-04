@@ -43,7 +43,7 @@ public class ClientNaiveAgent implements Runnable {
 	private int focus_y;
 	//Wrapper of the communicating messages
 	private ClientActionRobotJava ar;
-	public byte currentLevel = 19;
+	public byte currentLevel = 1;
 	TrajectoryPlanner tp;
 	private int id = 18898;
 	private boolean firstShot;
@@ -95,6 +95,7 @@ public class ClientNaiveAgent implements Runnable {
 		ar.configure(ClientActionRobot.intToByteArray(id));
 		//load the initial level (default 1)
 		//ar.loadLevel((byte)15);
+		System.out.println(ar.loadLevel((byte)23));
 		int[] s = ar.checkScore();
 		level = s.length;
 		
@@ -144,8 +145,7 @@ public class ClientNaiveAgent implements Runnable {
 					    	  System.out.print( " level " + (i+1) + ": " + myscores[i]);
 					}
 					int max = -100000;
-					int max2 = -100000;
-					int max3 = -100000;
+					int maxi = 0;
 					
 					
 					for (int i = 0; i < myscores.length ; i ++)
