@@ -147,6 +147,7 @@ public class NaiveAgent implements Runnable {
 		List<Rectangle> pigs = vision.findPigs();
 		int bird_count = 0;
 		bird_count = red_birds.size() + blue_birds.size() + yellow_birds.size();
+		
 		/*if (sling!=null)
 		{
 			int colour = screenshot.getRGB(sling.x+sling.width/2, sling.y+sling.height/8);

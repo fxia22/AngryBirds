@@ -92,12 +92,15 @@ public class ClientNaiveAgent implements Runnable {
 	public void run() {
 		
 		boolean allplayed = false;
-		ar.configure(ClientActionRobot.intToByteArray(id));
+		byte config[] = ar.configure(ClientActionRobot.intToByteArray(id));
 		//load the initial level (default 1)
 		//ar.loadLevel((byte)15);
-		System.out.println(ar.loadLevel((byte)23));
-		int[] s = ar.checkScore();
-		level = s.length;
+		//System.out.println(ar.loadLevel((byte)23));
+		System.out.println(config[0]+"level"+config[2]+"time"+config[1]);
+		level = config[2];
+		
+		//int[] s = ar.checkScore();
+		//level = s.length;
 		
 		
 		ar.loadLevel(currentLevel);
@@ -124,8 +127,11 @@ public class ClientNaiveAgent implements Runnable {
 				if (currentLevel>level) allplayed = true;
 				if (allplayed) 
 				{
+					ar.loadLevel((byte)1);
 					System.out.println("All Played!");
 					int[] scores = ar.checkScore();
+					
+					
 					System.out.println("The global best score: ");
 					for (int i = 0; i < scores.length ; i ++)
 					{
@@ -135,6 +141,16 @@ public class ClientNaiveAgent implements Runnable {
 					    	  System.out.print( " level " + (i+1) + ": " + scores[i]);
 					}
 					System.out.println();
+					
+					try {
+						Thread.sleep(300);
+					} catch (InterruptedException e) {
+						
+						e.printStackTrace();
+						
+						
+					}
+					
 					System.out.println(" My score: ");
 					int myscores[] = ar.checkMyScore();
 					for (int i = 0; i < myscores.length ; i ++)
@@ -146,21 +162,65 @@ public class ClientNaiveAgent implements Runnable {
 					}
 					int max = -100000;
 					int maxi = 0;
-					
-					
+					int[] diff = new int[21];
+					int[] num = new int [21];
+					for (int i = 0;i<21;i++) num[i]=i;
 					for (int i = 0; i < myscores.length ; i ++)
 					{
 						if (scores[i]-myscores[i]>max) 
 						{
+							diff[i] = scores[i]-myscores[i];
 							max = scores[i]-myscores[i];
 							maxi = i;
 							
 						}
 					}
+					System.out.println("Diff:");
+					for (int i = 0; i < diff.length ; i ++)
+					{
+					      /*if(scores[i] == 0)
+					    	  break;
+					      else*/
+					    	  System.out.print( " level " + (i+1) + ": " + diff[i]);
+					}
 					
-					System.out.println("Play level"+(maxi+1));
+					
+					/**
+					 * 对低分进行排序
+					 */
+					int temp = 0;
+					
+					 for(int i = 0;i<level;i++){
+			                for(int j = i;j<level;j++){
+
+			                    if(diff[i]<diff[j]){
+
+			                       
+			                        temp = diff[i];
+			                        diff[i] = diff[j];
+			                        diff[j] = temp;
+			                        
+			                        temp = num[i];
+			                        num[i]=num[j];
+			                        num[j]= temp;
+			                        
+
+			                         }
+
+			                 }
+			            }
+					
+					Random r = new Random();
+					int l = r.nextInt(5);
+					currentLevel = (byte)(num[l]+1);
+					System.out.println("Worst:"+(num[0]+1));
+					
+					System.out.println("Second Worst:"+(num[1]+1));
+					System.out.println("Third Worst:"+(num[2]+1));
+					System.out.println("Play level"+currentLevel);
+					
 					System.out.println();
-					currentLevel = (byte)(maxi+1);
+					
 				}
 				
 				
@@ -181,14 +241,19 @@ public class ClientNaiveAgent implements Runnable {
 				//If lost, then restart the level
 				if (state == GameState.LOST) {
 				ar.restartLevel();
+				last_shot_score = 0;
 				fail++;
 				System.out.println("Fail:"+fail);
 				if (fail>1) 
 				{
+					if (currentLevel== level) allplayed = true;
 					if (allplayed) 
 					{
+						ar.loadLevel((byte)1);
 						System.out.println("All Played!");
 						int[] scores = ar.checkScore();
+						
+						
 						System.out.println("The global best score: ");
 						for (int i = 0; i < scores.length ; i ++)
 						{
@@ -198,6 +263,15 @@ public class ClientNaiveAgent implements Runnable {
 						    	  System.out.print( " level " + (i+1) + ": " + scores[i]);
 						}
 						System.out.println();
+						try {
+							Thread.sleep(300);
+						} catch (InterruptedException e) {
+							
+							e.printStackTrace();
+							
+							
+						}
+						
 						System.out.println(" My score: ");
 						int myscores[] = ar.checkMyScore();
 						for (int i = 0; i < myscores.length ; i ++)
@@ -209,21 +283,68 @@ public class ClientNaiveAgent implements Runnable {
 						}
 						int max = -100000;
 						int maxi = 0;
+						int[] diff = new int[21];
+						int[] num = new int [21];
+						for (int i = 0;i<21;i++) num[i]=i;
 						for (int i = 0; i < myscores.length ; i ++)
 						{
 							if (scores[i]-myscores[i]>max) 
 							{
+								diff[i] = scores[i]-myscores[i];
 								max = scores[i]-myscores[i];
 								maxi = i;
 								
 							}
 						}
+						System.out.println("Diff:");
+						for (int i = 0; i < diff.length ; i ++)
+						{
+						      /*if(scores[i] == 0)
+						    	  break;
+						      else*/
+						    	  System.out.print( " level " + (i+1) + ": " + diff[i]);
+						}
 						
-						System.out.println("Play level"+(maxi+1));
+						
+						/**
+						 * 对低分进行排序
+						 */
+						int temp = 0;
+						
+						 for(int i = 0;i<level;i++){
+				                for(int j = i;j<level;j++){
+
+				                    if(diff[i]<diff[j]){
+
+				                       
+				                        temp = diff[i];
+				                        diff[i] = diff[j];
+				                        diff[j] = temp;
+				                        
+				                        temp = num[i];
+				                        num[i]=num[j];
+				                        num[j]= temp;
+				                        
+
+				                         }
+
+				                 }
+				            }
+						
+						Random r = new Random();
+						int l = r.nextInt(5);
+						currentLevel = (byte)(num[l]+1);
+						System.out.println("Worst:"+(num[0]+1));
+						
+						System.out.println("Second Worst:"+(num[1]+1));
+						System.out.println("Third Worst:"+(num[2]+1));
+						
+						System.out.println("Play level"+currentLevel);
+						
 						System.out.println();
-						currentLevel = (byte)(maxi+1);
 					}
 					else currentLevel+=1;
+					
 					ar.loadLevel(currentLevel);
 					fail = 0;
 					
@@ -511,6 +632,20 @@ public class ClientNaiveAgent implements Runnable {
 		
 		int tap_time = 100;
 		// if there is a sling, then play, otherwise skip.
+		ar.fullyZoomOut();
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			
+			e.printStackTrace();
+		}
+	
+		screenshot = ar.doScreenShot();
+		
+		Vision vision2 = new Vision(screenshot);
+		sling = vision2.findSlingshot();
+		
+		
 		if (sling != null) {
 			
 			/*BufferedImage birdshot = ar.doScreenShot();
@@ -532,7 +667,7 @@ public class ClientNaiveAgent implements Runnable {
 			
 			System.out.println("birdsize"+bird);
 			*/
-			ar.fullyZoomOut();
+			//ar.fullyZoomOut();
 			
 			//If there are pigs, we pick up a pig randomly and shoot it. 
 			if (!pigs.isEmpty()) {		
@@ -566,7 +701,7 @@ public class ClientNaiveAgent implements Runnable {
 					tr.clear();
 					for (int i = 0; i<20;i++)
 					{	
-						Point p = new Point((int)((pig.getCenterX()+sling.getX())/2+(pig.getCenterX()-sling.getX())*i/10),(int)((pig.getCenterY()+sling.getY())/2+(pig.getCenterY()-sling.getY())*i/10));
+						Point p = new Point((int)((pig.getCenterX()+sling.getX())/2+(pig.getCenterX()-sling.getX())*(i)/40),(int)((pig.getCenterY()+sling.getY())/2+(pig.getCenterY()-sling.getY())*(i)/40));
 						tr.add(p);
 					//	System.out.println(p.toString());
 					}
@@ -592,11 +727,17 @@ public class ClientNaiveAgent implements Runnable {
 					System.out.println("clods:"+clods.size());
 					System.out.println(clods.toString());
 					int in = 0;
+					screenshot = ar.doScreenShot();
 					for (int i=0;i<18; i++)
-						for (int j = 0;j<clods.size();j++)
+						
 						{
-							if (clods.get(j).contains(tr.get(i))){ in += 1;
-							System.out.println("in==="+tr.get(i).toString());}
+							
+							int tempc = colorCVT(screenshot.getRGB(tr.get(i).x,tr.get(i).y));
+							System.out.println(tempc);
+							if  ((tempc == 136)||(tempc ==72)) 
+								{in += 1;
+								System.out.println("in==="+tr.get(i).toString());
+								}
 						}
 					System.out.println("in:"+in);
 					if (in > 2) System.out.println("***********WARNING COLLISION***********");
@@ -605,9 +746,13 @@ public class ClientNaiveAgent implements Runnable {
 					 * 选择抛物线，通常选择较低的
 					 */
 					// do a high shot when entering a level to find an accurate velocity
-					if ((_last_shot_score==0)||(_last_shot_score>=1500))
+					int bad_shot_threshold = 1500;
+					int[] bestscore =  ar.checkScore();
+					if (bestscore[currentLevel-1]!=0)  bad_shot_threshold = bestscore[currentLevel-1]/20;
+					System.out.println("BADSHOTTHRESHOD"+bad_shot_threshold);
+					if ((firstShot)||(_last_shot_score>= bad_shot_threshold)) 
 					{
-						if ((in>1)&&(pts.size()>1)&&(r.nextInt(4)!=1)||(firstShot)&&((pts.size()>1)))
+						if ((in>1)&&(pts.size()>1)&&(r.nextInt(6)!=1)||(firstShot)&&((pts.size()>1)))
 						{
 							releasePoint = pts.get(1);
 							lastshotp = 1;
@@ -631,6 +776,8 @@ public class ClientNaiveAgent implements Runnable {
 								
 						lastshotp = 1- lastshotp;
 					};
+					
+					
 					
 						
 					Point refPoint = tp.getReferencePoint(sling);
@@ -836,6 +983,14 @@ public class ClientNaiveAgent implements Runnable {
 		}
 		ar.clickInCenter();*/
 		//ar.fullyZoomOut();
+	}
+	
+	
+	private int colorCVT(int colour)
+	{
+		return((colour & 0x00e00000) >> 15)
+		| ((colour & 0x0000e000) >> 10)
+		| ((colour & 0x000000e0) >> 5);
 	}
 	
 	
